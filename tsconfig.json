@@ -30,6 +30,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  // "include": ["src"]
   // "include": ["src/**/*"]   // ensure it checks your JavaScript
 }

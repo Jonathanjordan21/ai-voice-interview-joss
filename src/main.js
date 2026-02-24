@@ -1,4 +1,4 @@
-// import '/src/style.css'
+import '/src/style.css'
 import { setupCounter } from './counter.js'
 
 const button = document.querySelector('#counter')

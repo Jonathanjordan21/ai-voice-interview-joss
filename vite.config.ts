@@ -94,38 +94,74 @@
 // })
 
 
-import { defineConfig } from 'vite';
-import fs from 'fs';
-import path from 'path';
+// import { defineConfig } from 'vite';
+// import fs from 'fs';
+// import path from 'path';
+
+// export default defineConfig({
+//   plugins: [
+//     {
+//       name: 'spa-interview-fallback',
+//       configureServer(server) {
+//         server.middlewares.use((req, res, next) => {
+//           const url = req.url!;
+          
+//           // if it's a valid file that exists, let Vite handle it
+//           const filePath = path.join(server.config.root, url);
+//           if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+//             return next();
+//           }
+
+//           // if it's a request for /interview/*
+//           if (url.startsWith('/interview/')) {
+//             const indexHtml = fs.readFileSync(
+//               path.join(server.config.root, 'index.html'), 'utf-8'
+//             );
+//             res.statusCode = 200;
+//             res.setHeader('Content-Type', 'text/html');
+//             res.end(indexHtml);
+//             return;
+//           }
+
+//           return next(); // otherwise let Vite handle others
+//         });
+//       }
+//     }
+//   ]
+// });
+
+
+import { defineConfig } from 'vite'
+import fs from 'fs'
+import path from 'path'
 
 export default defineConfig({
+  server: {
+    fs: { strict: false }
+  },
   plugins: [
     {
       name: 'spa-interview-fallback',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          const url = req.url!;
-          
-          // if it's a valid file that exists, let Vite handle it
-          const filePath = path.join(server.config.root, url);
-          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-            return next();
+          const url = req.url!
+          const file = path.join(server.config.root, url.split('?')[0])
+
+          if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+            return next()  // let Vite serve real files
           }
 
-          // if it's a request for /interview/*
           if (url.startsWith('/interview/')) {
-            const indexHtml = fs.readFileSync(
-              path.join(server.config.root, 'index.html'), 'utf-8'
-            );
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'text/html');
-            res.end(indexHtml);
-            return;
+            const html = fs.readFileSync(path.join(server.config.root, 'index.html'))
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'text/html')
+            res.end(html)
+            return
           }
 
-          return next(); // otherwise let Vite handle others
-        });
+          next()
+        })
       }
     }
   ]
-});
+})

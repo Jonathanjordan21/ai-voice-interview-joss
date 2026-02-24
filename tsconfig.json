@@ -8,7 +8,7 @@
     "skipLibCheck": true,
 
     "allowJs": true,       // ✅ allow .js files
-    // "checkJs": false,      // optional, disables type checking for JS
+    "checkJs": false,      // optional, disables type checking for JS
     // "outDir": "dist",
     // "target": "ESNext",
     // "module": "ESNext",
@@ -30,6 +30,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
+  "include": ["**/*"]
   // "include": ["src"]
   // "include": ["src/**/*"]   // ensure it checks your JavaScript
 }

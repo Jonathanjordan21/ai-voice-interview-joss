@@ -1,6 +1,8 @@
 import '/src/style.css'
 import { setupCounter } from './counter.js'
 
+console.log('heyy')
+
 const button = document.querySelector('#counter')
 
 console.log("test main.js")

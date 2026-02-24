@@ -40,55 +40,92 @@
 // })
 
 
-import { defineConfig } from 'vite'
-import fs from 'fs'
-import path from 'path'
+// import { defineConfig } from 'vite'
+// import fs from 'fs'
+// import path from 'path'
+
+// export default defineConfig({
+//   server: {
+//     proxy: {
+//       '/interview': {
+//         target: 'http://127.0.0.1:8000',
+//         changeOrigin: true,
+//         rewrite: (path) => path, // keep the path as-is
+//       }
+//     }
+//   },
+//   plugins: [
+//     {
+//       name: 'custom-router',
+//       configureServer(server) {
+//         server.middlewares.use((req, res, next) => {
+//           const url = req.url || ''
+
+//           // ✅ Allow Vite dev server internal requests
+//           if (
+//             url.startsWith('/@vite/') ||      // Vite HMR & modules
+//             url.startsWith('/src/') ||        // src files
+//             url.startsWith('/node_modules/') || 
+//             url.startsWith('/public/') || 
+//             url.includes('.')                  // any file with extension
+//           ) {
+//             return next()
+//           }
+
+//           // ✅ Serve interview.html only for /interview/*
+//           if (url.startsWith('/interview/')) {
+//             const filePath = path.resolve('index.html')
+//             const html = fs.readFileSync(filePath, 'utf-8')
+
+//             res.statusCode = 200
+//             res.setHeader('Content-Type', 'text/html')
+//             res.end(html)
+//             return
+//           }
+
+//           // ❌ Everything else → 404
+//           res.statusCode = 404
+//           res.setHeader('Content-Type', 'text/plain')
+//           res.end('404 Not Found')
+//         })
+//       }
+//     }
+//   ]
+// })
+
+
+import { defineConfig } from 'vite';
+import fs from 'fs';
+import path from 'path';
 
 export default defineConfig({
-  server: {
-    proxy: {
-      '/interview': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        rewrite: (path) => path, // keep the path as-is
-      }
-    }
-  },
   plugins: [
     {
-      name: 'custom-router',
+      name: 'spa-interview-fallback',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          const url = req.url || ''
-
-          // ✅ Allow Vite dev server internal requests
-          if (
-            url.startsWith('/@vite/') ||      // Vite HMR & modules
-            url.startsWith('/src/') ||        // src files
-            url.startsWith('/node_modules/') || 
-            url.startsWith('/public/') || 
-            url.includes('.')                  // any file with extension
-          ) {
-            return next()
+          const url = req.url!;
+          
+          // if it's a valid file that exists, let Vite handle it
+          const filePath = path.join(server.config.root, url);
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            return next();
           }
 
-          // ✅ Serve interview.html only for /interview/*
+          // if it's a request for /interview/*
           if (url.startsWith('/interview/')) {
-            const filePath = path.resolve('index.html')
-            const html = fs.readFileSync(filePath, 'utf-8')
-
-            res.statusCode = 200
-            res.setHeader('Content-Type', 'text/html')
-            res.end(html)
-            return
+            const indexHtml = fs.readFileSync(
+              path.join(server.config.root, 'index.html'), 'utf-8'
+            );
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'text/html');
+            res.end(indexHtml);
+            return;
           }
 
-          // ❌ Everything else → 404
-          res.statusCode = 404
-          res.setHeader('Content-Type', 'text/plain')
-          res.end('404 Not Found')
-        })
+          return next(); // otherwise let Vite handle others
+        });
       }
     }
   ]
-})
+});

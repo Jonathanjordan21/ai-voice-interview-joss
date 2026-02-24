@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+      {
+        "source": "/interview/:path*",
+        "destination": "/index.html"
+      }
+    ]
+  }

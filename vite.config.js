@@ -134,8 +134,18 @@
 import { defineConfig } from 'vite'
 import fs from 'fs'
 import path from 'path'
+import {resolve} from 'path'
 
 export default defineConfig({
+  base: '/',
+  build: {
+    rollupOptions: {
+      input: {
+        main: './index.html', // Pastikan path ini benar dari root project
+        // main: resolve(__dirname, 'index.html'), // Pastikan ini mengarah ke file yang benar
+      },
+    },
+  },
   server: {
     fs: { strict: false }
   },
@@ -144,7 +154,7 @@ export default defineConfig({
       name: 'spa-interview-fallback',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          const url = req.url!
+          const url = req.url
           const file = path.join(server.config.root, url.split('?')[0])
 
           if (fs.existsSync(file) && fs.statSync(file).isFile()) {

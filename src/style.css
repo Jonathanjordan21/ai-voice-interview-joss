@@ -1,0 +1,241 @@
+* {
+  box-sizing: border-box;
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #3B82F6, #6366F1);
+  color: #ffffff;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.status-container {
+  display: flex;         /* Makes items sit side-by-side */
+  align-items: center;   /* Aligns them vertically in the middle */
+  gap: 15px;             /* Adds space between the logo and text */
+  padding: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.status-logo {
+  height: 50px;          /* Adjust size as needed */
+  width: auto;
+}
+
+/* Top Bar */
+.top-bar {
+  padding: 14px 24px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Meeting Area */
+.meeting-area {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  padding: 24px;
+}
+
+/* Video Tiles */
+.video-tile {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+
+.meeting-title {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 1.5rem;
+  color: #ffffff;
+  margin: 0;             /* Removes default H1 spacing */
+  letter-spacing: -1px;  /* Modern, tighter look */
+}
+
+.meeting-time {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 2.5rem;
+  color: #ffffff;
+  margin: 0;             /* Removes default H1 spacing */
+  letter-spacing: -1px;  /* Modern, tighter look */
+  padding-right: 1%;
+}
+
+.label {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 2.5rem;
+  color: #ffffff;
+  margin: 0;             /* Removes default H1 spacing */
+  letter-spacing: -1px;  /* Modern, tighter look */
+}
+
+/* Subtle brand border */
+.video-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 2px;
+  justify-content: center;
+  background: linear-gradient(135deg, #F97316, #3B82F6);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+.video-tile:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+/* 
+.video-title.user {
+  justify-content: center;
+  align-items: center;
+} */
+
+/* Controls */
+.controls {
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Control Buttons */
+.control-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: white;
+  font-size: 1.1rem;
+  padding: 15px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+/* Orange hover accent */
+.control-btn:hover {
+  background: #F97316;
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(249, 115, 22, 0.5);
+}
+
+/* End Button */
+.control-btn.end {
+  border-radius: 28px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #F97316, #FB923C);
+  font-weight: 600;
+  color: white;
+}
+
+.control-btn.end:hover {
+  box-shadow: 0 10px 25px rgba(249, 115, 22, 0.6);
+  transform: scale(1.05);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .meeting-area {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* * {
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #202124;
+  color: white;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  padding: 12px 20px;
+  background: #303134;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meeting-area {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.video-tile {
+  background: #3c4043;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.controls {
+  padding: 12px;
+  background: #303134;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.control-btn {
+  background: #3c4043;
+  border: none;
+  color: white;
+  font-size: 1.1rem;
+  padding: 12px 16px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.control-btn:hover {
+  background: #5f6368;
+}
+
+.control-btn.end {
+  border-radius: 24px;
+  padding: 12px 20px;
+  background: #ea4335;
+}
+
+.video-tile {
+  position: relative;
+  overflow: hidden;
+} */

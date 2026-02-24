@@ -1,0 +1,90 @@
+<!-- <!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>my-project</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>AI Interview</title>
+  </head>
+  <body>    
+    <div id="app">
+      <!-- Header -->
+      <header class="top-bar">
+        <!-- <span class="meeting-title">AI Interview Session</span> -->
+        <div class="status-container">
+          <img src="https://static.wixstatic.com/media/b1fac1_9c0ef77531834b2f9be1ea02ff6c47a9~mv2.png" 
+              alt="LMD Logo" 
+              class="status-logo"
+          >
+
+          <h1 class="meeting-title">JOSS AI Interview</h1>
+          
+          <!-- <p class="meeting-title">
+            JOSS AI Interview
+          </p> -->
+        </div>
+        <span class="meeting-time">00:00</span>
+      </header>
+
+      <!-- Main Video Area -->
+      <!-- <main class="meeting-area">
+        <div class="video-tile ai">
+          <span>🤖 AI Interviewer</span>
+        </div>
+        <div class="video-tile user">
+          <span>👤 You</span>
+        </div>
+      </main>
+
+      <footer class="controls">
+        <button class="control-btn">🎤</button>
+        <button class="control-btn">📷</button>
+        <button class="control-btn end" id="counter">
+          Start Interview
+        </button>
+      </footer> -->
+
+      <main class="meeting-area">
+        <div class="video-tile ai">
+          <canvas id="ai-bg"></canvas>
+          <span class="label">AI Interviewer</span>
+        </div>
+      
+        <div class="video-tile user">
+          <video id="userVideo" autoplay playsinline muted></video>
+          <span class="label">You</span>
+        </div>
+      </main>
+      
+      <footer class="controls">
+        <input
+          id="apiKeyInput"
+          type="password"
+          placeholder="Enter Token"
+          autocomplete="off"
+          class="api-key-input"
+        />
+        <button class="control-btn end" id="counter">
+          Start Interview
+        </button>
+      </footer>
+      
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

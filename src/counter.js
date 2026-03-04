@@ -167,47 +167,88 @@ async function startRecording(stream) {
 
 async function stopInterview(session) {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = async () => {
+      console.log(`STOPPING INTERVIEW...`)
+
+      const blob = new Blob(recordedChunks, { type: "audio/webm" });
+      recordedChunks = [];
+
+      const formData = new FormData();
+      formData.append("file", blob, "recording.webm");
+
+      const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
+        method: "POST",
+        headers: {"Authorization": "Bearer " + interviewToken},
+        body: formData
+      })
+
+      const recording_data = await upload_recording.json()
+
+      const transcriptData = {
+        transcriptId: recording_data["data"]["datetime"],
+        date: new Date().toISOString(),
+        messages: chat_history
+      }
+
+      const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": "Bearer " + interviewToken,
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({
+          transcript:chat_history,
+          recording_url:recording_data["data"]["url"],
+          status:"FINISHED",
+          duration:seconds
+        }),
+      })
+    
+      if (!res.ok) {
+        throw new Error(`Request failed: ${res.status}`)
+      }
+    }
     mediaRecorder.stop()
 
-    console.log(`STOPPING INTERVIEW...`)
+    // console.log(`STOPPING INTERVIEW...`)
 
-    const blob = new Blob(recordedChunks, { type: "audio/webm" });
-    recordedChunks = [];
+    // const blob = new Blob(recordedChunks, { type: "audio/webm" });
+    // recordedChunks = [];
 
-    const formData = new FormData();
-    formData.append("file", blob, "recording.webm");
+    // const formData = new FormData();
+    // formData.append("file", blob, "recording.webm");
 
-    const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
-      method: "POST",
-      headers: {"Authorization": "Bearer " + interviewToken},
-      body: formData
-    })
+    // const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
+    //   method: "POST",
+    //   headers: {"Authorization": "Bearer " + interviewToken},
+    //   body: formData
+    // })
 
-    const recording_data = await upload_recording.json()
+    // const recording_data = await upload_recording.json()
 
-    const transcriptData = {
-      transcriptId: recording_data["data"]["datetime"],
-      date: new Date().toISOString(),
-      messages: chat_history
-    }
+    // const transcriptData = {
+    //   transcriptId: recording_data["data"]["datetime"],
+    //   date: new Date().toISOString(),
+    //   messages: chat_history
+    // }
 
-    const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
-      method: "PATCH",
-      headers: {
-        "Authorization": "Bearer " + interviewToken,
-        "Content-Type": "application/json" 
-      },
-      body: JSON.stringify({
-        transcript:chat_history,
-        recording_url:recording_data["data"]["url"],
-        status:"FINISHED",
-        duration:seconds
-      }),
-    })
+    // const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
+    //   method: "PATCH",
+    //   headers: {
+    //     "Authorization": "Bearer " + interviewToken,
+    //     "Content-Type": "application/json" 
+    //   },
+    //   body: JSON.stringify({
+    //     transcript:chat_history,
+    //     recording_url:recording_data["data"]["url"],
+    //     status:"FINISHED",
+    //     duration:seconds
+    //   }),
+    // })
   
-    if (!res.ok) {
-      throw new Error(`Request failed: ${res.status}`)
-    }
+    // if (!res.ok) {
+    //   throw new Error(`Request failed: ${res.status}`)
+    // }
   
     // const data = await res.json()
     

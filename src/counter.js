@@ -42,8 +42,6 @@ if (parts.length != 2) {
         // headers: {"Authorization": "Bearer " + HF_API_KEY}
       });
 
-      console.log(response);
-
       if (!response.ok) throw new Error(`${response.status}`);
 
       const data = await response.json();

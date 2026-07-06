@@ -416,15 +416,15 @@ async function stopInterview() {
       const blob = new Blob(recordedChunks, { type: 'video/webm' });
       recordedChunks = [];
 
-      // Optional: keep a local download for debugging (remove if not needed)
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `interview_${Date.now()}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      // // Optional: keep a local download for debugging (remove if not needed)
+      // const url = URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = `interview_${Date.now()}.webm`;
+      // document.body.appendChild(a);
+      // a.click();
+      // a.remove();
+      // setTimeout(() => URL.revokeObjectURL(url), 1000);
 
       // 2. Upload recording
       const formData = new FormData();
@@ -451,7 +451,7 @@ async function stopInterview() {
           },
           body: JSON.stringify({
             transcript: chat_history,
-            recording_url: recordingData.data.url,
+            recording_url: recordingData.data.gcs_url || recordingData.data.local_path,
             status: 'FINISHED',
             duration: seconds,
           }),

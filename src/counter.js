@@ -1,4 +1,5 @@
 // import { RealtimeAgent, RealtimeSession } from '@openai/agents/realtime';
+import { ConsoleSpanExporter } from "@openai/agents"
 import { RealtimeAgent, RealtimeSession } from "https://esm.sh/@openai/agents/realtime"
 // import dotenv from "dotenv";
 
@@ -9,9 +10,12 @@ let recordedChunks = []
 let stream = null
 let chat_history = []
 
+let AISession = null;
+
 let interviewToken = null;
 
-const API_BASE_URL = 'https://jonathanjordan21-joss-interview-backend-demo.hf.space'
+// const API_BASE_URL = 'https://jonathanjordan21-joss-interview-backend-demo.hf.space'
+const API_BASE_URL = 'http://182.23.45.127:7860'
 
 const parts = window.location.pathname.split('/').filter(p => p.trim() !== '');
 const interviewId = parts[parts.length - 1];
@@ -38,6 +42,8 @@ if (parts.length != 2) {
         // headers: {"Authorization": "Bearer " + HF_API_KEY}
       });
 
+      console.log(response);
+
       if (!response.ok) throw new Error(`${response.status}`);
 
       const data = await response.json();
@@ -53,6 +59,26 @@ if (parts.length != 2) {
   loadData();
 }
 
+
+// Capture the AI audio stream from the WebRTC connection
+let aiAudioStream = null;
+
+const OriginalRTCPeerConnection = window.RTCPeerConnection;
+
+window.RTCPeerConnection = function (...args) {
+  const pc = new OriginalRTCPeerConnection(...args);
+
+  // Listen for remote audio tracks (the AI’s voice)
+  pc.addEventListener('track', (event) => {
+    if (event.track.kind === 'audio' && event.streams.length > 0) {
+      aiAudioStream = event.streams[0];
+      console.log('✅ AI audio stream captured from RTCPeerConnection');
+    }
+  });
+
+  return pc;
+};
+
 export async function setupCounter(button) {
   let started = false
 
@@ -62,10 +88,19 @@ export async function setupCounter(button) {
     if (started) {
       button.textContent = 'Loading...'
 
-      await stopInterview()
+      if (AISession) {
+        AISession.close();
+        AISession = null;
+      }
+
+      // await stopInterview()
+      // In the button handler
+      console.log("STOP.... WAIT...");
+      await stopInterview();
       
-      // button.textContent = "Start Interview"
-      // apiKeyInput.style.display = 'block';
+      button.textContent = "Start Interview"
+      apiKeyInput.style.display = 'block';
+
       setTimeout(() => {
         window.location.href = "/finished.html"
       }, 1000)
@@ -138,17 +173,48 @@ export async function setupCounter(button) {
 }
 
 
+// async function startInterview() {
+//   const video = document.getElementById('userVideo')
+//   stream = await navigator.mediaDevices.getUserMedia({
+//     video: true,
+//     audio: true
+//   })
+//   video.srcObject = stream
+//   await startRecording(stream)
+
+// }
 async function startInterview() {
-  const video = document.getElementById('userVideo')
-  stream = await navigator.mediaDevices.getUserMedia({
+  const video = document.getElementById('userVideo');
+  const userStream = await navigator.mediaDevices.getUserMedia({
     video: true,
-    audio: true
-  })
-  video.srcObject = stream
-  await startRecording(stream)
+    audio: true,
+  });
+  video.srcObject = userStream;
 
+  // Ensure the AI stream is available
+  const aiStream = await new Promise((resolve) => {
+    if (window.aiAudioStream) return resolve(window.aiAudioStream);
+    const check = setInterval(() => {
+      if (window.aiAudioStream) {
+        clearInterval(check);
+        resolve(window.aiAudioStream);
+      }
+    }, 100);
+  });
+
+  const audioCtx = new AudioContext();
+  window.audioCtx = audioCtx;
+  const mixer = audioCtx.createMediaStreamDestination();
+
+  audioCtx.createMediaStreamSource(userStream).connect(mixer);
+  audioCtx.createMediaStreamSource(aiStream).connect(mixer);
+
+  const recordingStream = new MediaStream();
+  userStream.getVideoTracks().forEach(t => recordingStream.addTrack(t));
+  mixer.stream.getAudioTracks().forEach(t => recordingStream.addTrack(t));
+
+  await startRecording(recordingStream);
 }
-
 
 async function startRecording(stream) {
   recordedChunks = []
@@ -161,101 +227,256 @@ async function startRecording(stream) {
     }
   }
   // mediaRecorder.onstop = saveRecording
+  // mediaRecorder.onstop = async () => {
+  //   try {
+  //     console.log(`STOPPING INTERVIEW...`)
+
+  //     const blob = new Blob(recordedChunks, { type: "audio/webm" });
+  //     recordedChunks = [];
+
+  //     const formData = new FormData();
+  //     formData.append("file", blob, "recording.webm");
+
+  //     const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
+  //       method: "POST",
+  //       headers: {"Authorization": "Bearer " + interviewToken},
+  //       body: formData
+  //     })
+
+  //     const recording_data = await upload_recording.json()
+
+  //     const transcriptData = {
+  //       transcriptId: recording_data["data"]["datetime"],
+  //       date: new Date().toISOString(),
+  //       messages: chat_history
+  //     }
+
+  //     const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
+  //       method: "PATCH",
+  //       headers: {
+  //         "Authorization": "Bearer " + interviewToken,
+  //         "Content-Type": "application/json" 
+  //       },
+  //       body: JSON.stringify({
+  //         transcript:chat_history,
+  //         recording_url:recording_data["data"]["url"],
+  //         status:"FINISHED",
+  //         duration:seconds
+  //       }),
+  //     })
+    
+  //     if (!res.ok) {
+  //       throw new Error(`Request failed: ${res.status}`)
+  //     }
+  //   }  catch (e) {
+  //     console.error(e);
+  //     console.log(e.message);
+  //     alert(e.message)
+  //   }
+  // }
   mediaRecorder.start()
 }
 
+function stopRecorder(recorder) {
+  return new Promise((resolve) => {
+    recorder.addEventListener("stop", resolve, { once: true });
+    recorder.stop();
+  });
+}
 
-async function stopInterview(session) {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.onstop = async () => {
-      console.log(`STOPPING INTERVIEW...`)
 
-      const blob = new Blob(recordedChunks, { type: "audio/webm" });
+// async function stopInterview(session) {
+//   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+//     // mediaRecorder.onstop = async () => {
+//     //   console.log(`STOPPING INTERVIEW...`)
+
+//     //   const blob = new Blob(recordedChunks, { type: "audio/webm" });
+//     //   recordedChunks = [];
+
+//     //   const formData = new FormData();
+//     //   formData.append("file", blob, "recording.webm");
+
+//     //   const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
+//     //     method: "POST",
+//     //     headers: {"Authorization": "Bearer " + interviewToken},
+//     //     body: formData
+//     //   })
+
+//     //   const recording_data = await upload_recording.json()
+
+//     //   const transcriptData = {
+//     //     transcriptId: recording_data["data"]["datetime"],
+//     //     date: new Date().toISOString(),
+//     //     messages: chat_history
+//     //   }
+
+//     //   const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
+//     //     method: "PATCH",
+//     //     headers: {
+//     //       "Authorization": "Bearer " + interviewToken,
+//     //       "Content-Type": "application/json" 
+//     //     },
+//     //     body: JSON.stringify({
+//     //       transcript:chat_history,
+//     //       recording_url:recording_data["data"]["url"],
+//     //       status:"FINISHED",
+//     //       duration:seconds
+//     //     }),
+//     //   })
+    
+//     //   if (!res.ok) {
+//     //     throw new Error(`Request failed: ${res.status}`)
+//     //   }
+//     // }
+//     // mediaRecorder.stop()
+//     await stopRecorder(mediaRecorder);
+
+//     console.log(`STOPPING INTERVIEW...`)
+
+//     const blob = new Blob(recordedChunks, { type: "audio/webm" });
+
+//         // Download locally
+//     const url = URL.createObjectURL(blob);
+
+//     const a = document.createElement("a");
+//     a.href = url;
+//     a.download = `interview123_${Date.now()}.webm`;
+
+//     document.body.appendChild(a);
+//     a.click();
+//     a.remove();
+
+//     setTimeout(() => {
+//       URL.revokeObjectURL(url);
+//     }, 1000);
+
+
+//     recordedChunks = [];
+
+//     const formData = new FormData();
+//     formData.append("file", blob, "recording.webm");
+
+//     const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
+//       method: "POST",
+//       headers: {"Authorization": "Bearer " + interviewToken},
+//       body: formData
+//     })
+
+//     const recording_data = await upload_recording.json()
+
+//     const transcriptData = {
+//       transcriptId: recording_data["data"]["datetime"],
+//       date: new Date().toISOString(),
+//       messages: chat_history
+//     }
+
+//     const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
+//       method: "PATCH",
+//       headers: {
+//         "Authorization": "Bearer " + interviewToken,
+//         "Content-Type": "application/json" 
+//       },
+//       body: JSON.stringify({
+//         transcript:chat_history,
+//         recording_url:recording_data["data"]["url"],
+//         status:"FINISHED",
+//         duration:seconds
+//       }),
+//     })
+  
+//     if (!res.ok) {
+//       throw new Error(`Request failed: ${res.status}`)
+//     }
+  
+//     const data = await res.json()
+    
+//   }
+
+//   if (stream) {
+//     stream.getTracks().forEach(track => track.stop())
+//   }
+// }
+
+
+async function stopInterview() {
+  // Clear the timer
+  // if (window.timerInterval) {
+  //   clearInterval(window.timerInterval);
+  //   window.timerInterval = null;
+  // }
+
+  try {
+    // 1. Stop the media recorder
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      await stopRecorder(mediaRecorder);
+
+      console.log('STOPPING INTERVIEW...');
+
+      // Correct MIME type
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
       recordedChunks = [];
 
+      // Optional: keep a local download for debugging (remove if not needed)
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `interview_${Date.now()}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      // 2. Upload recording
       const formData = new FormData();
-      formData.append("file", blob, "recording.webm");
+      formData.append('file', blob, 'recording.webm');
+      const uploadResponse = await fetch(
+        `${API_BASE_URL}/interview/${interviewId}/file`,
+        {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + interviewToken },
+          body: formData,
+        }
+      );
+      if (!uploadResponse.ok) throw new Error(`Upload failed: ${uploadResponse.status}`);
+      const recordingData = await uploadResponse.json();
 
-      const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
-        method: "POST",
-        headers: {"Authorization": "Bearer " + interviewToken},
-        body: formData
-      })
-
-      const recording_data = await upload_recording.json()
-
-      const transcriptData = {
-        transcriptId: recording_data["data"]["datetime"],
-        date: new Date().toISOString(),
-        messages: chat_history
-      }
-
-      const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
-        method: "PATCH",
-        headers: {
-          "Authorization": "Bearer " + interviewToken,
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify({
-          transcript:chat_history,
-          recording_url:recording_data["data"]["url"],
-          status:"FINISHED",
-          duration:seconds
-        }),
-      })
-    
-      if (!res.ok) {
-        throw new Error(`Request failed: ${res.status}`)
-      }
+      // 3. Update interview status
+      const patchResponse = await fetch(
+        `${API_BASE_URL}/interview/${interviewId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer ' + interviewToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            transcript: chat_history,
+            recording_url: recordingData.data.url,
+            status: 'FINISHED',
+            duration: seconds,
+          }),
+        }
+      );
+      if (!patchResponse.ok) throw new Error(`PATCH failed: ${patchResponse.status}`);
     }
-    mediaRecorder.stop()
-
-    // console.log(`STOPPING INTERVIEW...`)
-
-    // const blob = new Blob(recordedChunks, { type: "audio/webm" });
-    // recordedChunks = [];
-
-    // const formData = new FormData();
-    // formData.append("file", blob, "recording.webm");
-
-    // const upload_recording = await fetch(`${API_BASE_URL}/interview/${interviewId}/file`, {
-    //   method: "POST",
-    //   headers: {"Authorization": "Bearer " + interviewToken},
-    //   body: formData
-    // })
-
-    // const recording_data = await upload_recording.json()
-
-    // const transcriptData = {
-    //   transcriptId: recording_data["data"]["datetime"],
-    //   date: new Date().toISOString(),
-    //   messages: chat_history
+  } catch (err) {
+    console.error('Error stopping interview:', err);
+    // Optionally show user an error message
+  } finally {
+    // // 4. Disconnect the AI session
+    // if (session && typeof session.disconnect === 'function') {
+    //   session.disconnect();
     // }
 
-    // const res = await fetch(`${API_BASE_URL}/interview/${interviewId}`, {
-    //   method: "PATCH",
-    //   headers: {
-    //     "Authorization": "Bearer " + interviewToken,
-    //     "Content-Type": "application/json" 
-    //   },
-    //   body: JSON.stringify({
-    //     transcript:chat_history,
-    //     recording_url:recording_data["data"]["url"],
-    //     status:"FINISHED",
-    //     duration:seconds
-    //   }),
-    // })
-  
-    // if (!res.ok) {
-    //   throw new Error(`Request failed: ${res.status}`)
+    // // 5. Close the AudioContext (stops mixed audio processing)
+    // if (window.audioCtx && window.audioCtx.state !== 'closed') {
+    //   window.audioCtx.close();
     // }
-  
-    // const data = await res.json()
-    
-  }
 
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop())
+    // // 6. Stop all remaining media tracks (user webcam, etc.)
+    // if (stream) {
+    //   stream.getTracks().forEach(track => track.stop());
+    // }
   }
 }
 
@@ -372,34 +593,73 @@ async function startUserCamera() {
 }
 
 
+// async function startAIVoiceInterview(key, prompt) {
+//   const agent = new RealtimeAgent({
+//     name: 'Interviewer',
+//     instructions: prompt ? prompt
+//     : 'You are AI Agent currently interviewing candidates in Bahasa Indonesia. Ask everything related to their skill',
+//   });
+
+//   const session = new RealtimeSession(agent, {"model":"gpt-realtime"});
+//   console.log(session);
+//   console.log(session._pc);
+//   console.log(session.transport);
+
+//   try {
+//     await session.connect({
+//       // To get this ephemeral key string, you can run the following command or implement the equivalent on the server side:
+//       // curl -s -X POST https://api.openai.com/v1/realtime/client_secrets -H "Authorization: Bearer $OPENAI_API_KEY" -H "Content-Type: application/json" -d '{"session": {"type": "realtime", "model": "gpt-realtime"}}' | jq .value
+//       apiKey: key
+//     });
+//     // console.log('You are connected!');
+
+//     session.on('history_updated', (history) => {
+//       // returns the full history of the session
+//       // console.log(`HISTORY UPDATED`);
+//       // console.log(history);
+//       chat_history = history
+//     });
+
+//     // session.on('history_added', (history) => {
+//       // console.log(`HISTORY ADDED`)
+//       // console.log(history)
+//     // })
+//   } catch (e) {
+//     console.error(e);
+//   }
+// }
+
+
 async function startAIVoiceInterview(key, prompt) {
   const agent = new RealtimeAgent({
     name: 'Interviewer',
-    instructions: prompt ? prompt
-    : 'You are AI Agent currently interviewing candidates in Bahasa Indonesia. Ask everything related to their skill',
+    instructions: prompt || 'You are AI Agent currently interviewing candidates in Bahasa Indonesia. Ask everything related to their skill',
+  });
+  const session = new RealtimeSession(agent, { model: 'gpt-realtime' });
+
+  await session.connect({ apiKey: key });
+  console.log('AI session connected');
+
+  // Wait for the AI audio stream (captured by our monkey-patch)
+  const stream = await new Promise((resolve, reject) => {
+    if (aiAudioStream) return resolve(aiAudioStream);
+    const start = Date.now();
+    const check = setInterval(() => {
+      if (aiAudioStream) {
+        clearInterval(check);
+        resolve(aiAudioStream);
+      } else if (Date.now() - start > 15000) {
+        clearInterval(check);
+        reject(new Error('AI audio stream timed out – no remote track received'));
+      }
+    }, 100);
   });
 
-  const session = new RealtimeSession(agent, {"model":"gpt-realtime"});
-  try {
-    await session.connect({
-      // To get this ephemeral key string, you can run the following command or implement the equivalent on the server side:
-      // curl -s -X POST https://api.openai.com/v1/realtime/client_secrets -H "Authorization: Bearer $OPENAI_API_KEY" -H "Content-Type: application/json" -d '{"session": {"type": "realtime", "model": "gpt-realtime"}}' | jq .value
-      apiKey: key
-    });
-    // console.log('You are connected!');
+  window.aiAudioStream = stream;   // for mixing
 
-    session.on('history_updated', (history) => {
-      // returns the full history of the session
-      // console.log(`HISTORY UPDATED`);
-      // console.log(history);
-      chat_history = history
-    });
+  AISession = session;
 
-    // session.on('history_added', (history) => {
-      // console.log(`HISTORY ADDED`)
-      // console.log(history)
-    // })
-  } catch (e) {
-    console.error(e);
-  }
+  session.on('history_updated', (history) => {
+    chat_history = history;
+  });
 }
